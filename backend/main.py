@@ -2,10 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
+import logging
 
 from core.database import Base, engine
 from core.config import settings
 from routers import devices, scans, vulnerabilities
+
+# Настраиваем логирование
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
@@ -14,6 +18,9 @@ async def lifespan(app: FastAPI):
     Lifecycle события приложения
     Создает таблицы БД при запуске
     """
+    # Вывод DATABASE_URL в лог при старте приложения
+    logging.info(f"DATABASE_URL: {settings.database_url}")
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -29,7 +36,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.cors_origins or [],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

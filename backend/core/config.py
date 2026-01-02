@@ -1,22 +1,23 @@
+from typing import List, Optional
 from pydantic_settings import BaseSettings
-from typing import List
+
 
 class Settings(BaseSettings):
-    postgres_user: str
-    postgres_password: str
-    postgres_db: str
-    postgres_host: str
+    postgres_user: Optional[str] = None
+    postgres_password: Optional[str] = None
+    postgres_db: Optional[str] = None
+    postgres_host: Optional[str] = None
     postgres_port: int = 5432
 
-    secret_key: str
-    cors_origins: List[str] = [
-        "http://localhost:3000",
-        "http://frontend:3000",
-    ]
+    secret_key: Optional[str] = None
+    cors_origins: Optional[List[str]] = None
 
     @property
     def database_url(self) -> str:
-        return f"postgresql://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        return (
+            f"postgresql://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
 
     class Config:
         env_file = ".env"
@@ -24,3 +25,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+print("DATABASE_URL:", settings.database_url)

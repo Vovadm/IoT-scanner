@@ -1,12 +1,17 @@
+from sqlalchemy.orm.session import Session
+
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from core.config import settings
+from core.config import settings  # импортируем экземпляр, а не класс
 
-DATABASE_URL = settings.database_url
+DATABASE_URL = settings.database_url  # теперь это корректно
 
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker[Session](
+    autocommit=False, autoflush=False, bind=engine
+)
 Base = declarative_base()
 
 
