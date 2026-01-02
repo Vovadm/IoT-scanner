@@ -7,7 +7,7 @@ import nmap
 from models.enums import VulnerabilitySeverity
 
 
-DATA_PATH = Path(__file__).parent / "data" / "data.json"
+DATA_PATH = Path(__file__).parent.parent / "data" / "texts.json"
 
 
 class ScannerService:
@@ -27,9 +27,7 @@ class ScannerService:
 
             info: Dict[str, Any] = {
                 "ip_address": host,
-                "mac_address": self.nm[host]
-                .get("addresses", {})
-                .get("mac"),
+                "mac_address": self.nm[host].get("addresses", {}).get("mac"),
                 "hostname": None,
                 "device_type": None,
                 "open_ports": [],
@@ -162,9 +160,7 @@ class ScannerService:
                     "severity": VulnerabilitySeverity.MEDIUM,
                     "port": None,
                     "service": None,
-                    "recommendation": "\n".join(
-                        text["recommendation"]
-                    ),
+                    "recommendation": "\n".join(text["recommendation"]),
                 }
             )
 
@@ -197,4 +193,3 @@ class ScannerService:
             "service": service,
             "recommendation": "\n".join(text["recommendation"]),
         }
-
