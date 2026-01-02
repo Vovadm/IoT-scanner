@@ -1,41 +1,33 @@
-# models/scan.py
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import String, Integer, DateTime, Enum as SQLEnum
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy.orm import relationship
 
-# adjust this import to match your project structure:
-# from core.database import Base
-from database import Base
-
-from .enums import ScanStatus
-from .device import scan_devices_association
-
-if TYPE_CHECKING:
-    from .device import Device  # noqa: F401
+from core.database import Base
+from models.enums import ScanStatus
+from models.device import scan_devices_association
 
 
 class Scan(Base):
     __tablename__ = "scans"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    target_network: Mapped[str] = mapped_column(String(50), nullable=False)
-    status: Mapped[ScanStatus] = mapped_column(
-        SQLEnum(ScanStatus), default=ScanStatus.PENDING
-    )
-    started_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow
-    )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-    devices_found: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=True)
+    target_network = Column(String(50), nullable=False)
+
+    status = Column(
+        Enum(ScanStatus),
+        default=ScanStatus.PENDING,
+        nullable=False,
     )
 
-    devices: Mapped[List["Device"]] = relationship(
-        "Device", secondary=scan_devices_association, back_populates="scans"
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    devices_found = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    devices = relationship(
+        "Device",
+        secondary=scan_devices_association,
+        back_populates="scans",
     )

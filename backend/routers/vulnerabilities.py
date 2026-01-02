@@ -18,7 +18,6 @@ async def get_vulnerabilities(
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
 ):
-    """Получить список уязвимостей"""
     service = VulnerabilityService(db)
     vulnerabilities = await service.get_all(
         device_id=device_id, severity=severity, skip=skip, limit=limit
@@ -30,7 +29,6 @@ async def get_vulnerabilities(
 async def get_vulnerability(
     vulnerability_id: int, db: AsyncSession = Depends(get_db)
 ):
-    """Получить уязвимость по ID"""
     service = VulnerabilityService(db)
     vulnerability = await service.get_by_id(vulnerability_id)
     if not vulnerability:
@@ -44,7 +42,6 @@ async def update_vulnerability(
     vuln_update: VulnerabilityUpdate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Обновить статус уязвимости (например, отметить как исправленную)"""
     service = VulnerabilityService(db)
     vulnerability = await service.update(vulnerability_id, vuln_update)
     if not vulnerability:

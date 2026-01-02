@@ -13,7 +13,6 @@ router = APIRouter()
 async def get_devices(
     skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)
 ):
-    """Получить список всех устройств"""
     service = DeviceService(db)
     devices = await service.get_all(skip=skip, limit=limit)
     return devices
@@ -21,7 +20,6 @@ async def get_devices(
 
 @router.get("/{device_id}", response_model=DeviceWithVulnerabilities)
 async def get_device(device_id: int, db: AsyncSession = Depends(get_db)):
-    """Получить устройство по ID с уязвимостями"""
     service = DeviceService(db)
     device = await service.get_by_id(device_id)
     if not device:
@@ -31,7 +29,6 @@ async def get_device(device_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.delete("/{device_id}")
 async def delete_device(device_id: int, db: AsyncSession = Depends(get_db)):
-    """Удалить устройство"""
     service = DeviceService(db)
     deleted = await service.delete(device_id)
     if not deleted:

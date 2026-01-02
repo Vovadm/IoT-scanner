@@ -1,39 +1,32 @@
+import logging
+from contextlib import asynccontextmanager
+
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import uvicorn
-import logging
 
-from core.database import Base, engine
 from core.config import settings
+from core.init_db import init_db
 from routers import devices, scans, vulnerabilities
 
-# Настраиваем логирование
 logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Lifecycle события приложения
-    Создает таблицы БД при запуске
-    """
-    # Вывод DATABASE_URL в лог при старте приложения
-    logging.info(f"DATABASE_URL: {settings.database_url}")
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    logging.info("🔥 INIT DB START")
+    init_db()
+    logging.info("✅ INIT DB DONE")
     yield
 
 
 app = FastAPI(
     title="IoT Scanner API",
-    description="API для сканирования IoT устройств и обнаружения уязвимостей",
+    description="API для сканирования IoT устройств",
     version="1.0.0",
     lifespan=lifespan,
 )
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins or [],
@@ -42,7 +35,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
 app.include_router(devices.router, prefix="/api/devices", tags=["devices"])
 app.include_router(scans.router, prefix="/api/scans", tags=["scans"])
 app.include_router(
@@ -53,14 +45,14 @@ app.include_router(
 
 
 @app.get("/")
-async def root():
-    return {"message": "IoT Scanner API", "version": "1.0.0"}
+def root():
+    return {"message": "IoT Scanner API"}
 
 
 @app.get("/api/health")
-async def health():
-    return {"status": "healthy"}
+def health():
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -6,7 +6,6 @@ if TYPE_CHECKING:
     from models import ScanStatus, VulnerabilitySeverity
 
 
-# Device schemas
 class DeviceBase(BaseModel):
     ip_address: str
     mac_address: Optional[str] = None
@@ -36,7 +35,6 @@ class DeviceWithVulnerabilities(Device):
     vulnerabilities: List["Vulnerability"] = []
 
 
-# Scan schemas
 class ScanBase(BaseModel):
     name: Optional[str] = None
     target_network: str = Field(
@@ -60,7 +58,6 @@ class Scan(ScanBase):
         from_attributes = True
 
 
-# Vulnerability schemas
 class VulnerabilityBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -90,7 +87,6 @@ class Vulnerability(VulnerabilityBase):
         from_attributes = True
 
 
-# Response schemas
 class ScanResponse(BaseModel):
     scan: Scan
     message: str

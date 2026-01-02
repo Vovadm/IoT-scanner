@@ -25,11 +25,10 @@ class Device(DeviceBase):
     updated_at: datetime
 
     class Config:
-        from_attributes = True  # Pydantic v2
-        # orm_mode = True       # ← use this instead if Pydantic v1
+        from_attributes = True
 
 
-class Vulnerability(BaseModel):
+class VulnerabilityOut(BaseModel):
     id: int
     title: str
     severity: str
@@ -40,4 +39,4 @@ class Vulnerability(BaseModel):
 
 
 class DeviceWithVulnerabilities(Device):
-    vulnerabilities: List[Vulnerability] = Field(default_factory=list)
+    vulnerabilities: List[VulnerabilityOut] = Field(default_factory=list)

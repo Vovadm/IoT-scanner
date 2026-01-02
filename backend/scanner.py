@@ -151,9 +151,19 @@ class IoTScanner:
                 )
             )
 
-        if device.device_type and any(
-            k in device.device_type for k in {"IoT", "Camera", "Router"}
-        ):
+            device_type_value = getattr(device, "device_type", None)
+
+            if device_type_value and any(
+                k in device_type_value for k in {"IoT", "Camera", "Router"}
+            ):
+                vulnerabilities.append(
+                    self._make_vuln(
+                        v["default_credentials"],
+                        VulnerabilitySeverity.CRITICAL,
+                        None,
+                    )
+                )
+
             vulnerabilities.append(
                 self._make_vuln(
                     v["default_credentials"],

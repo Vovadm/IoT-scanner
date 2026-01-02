@@ -10,10 +10,6 @@ router = APIRouter()
 
 
 async def scan_network_background(scan_id: int):
-    """
-    Фоновая задача для сканирования сети
-    Создает новую сессию БД для фоновой задачи
-    """
     db = AsyncSessionLocal()
     try:
         service = ScanService(db)
@@ -28,7 +24,6 @@ async def create_scan(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """Создать новое сканирование сети"""
     service = ScanService(db)
     scan_response = await service.create_scan(scan_data)
 
@@ -42,7 +37,6 @@ async def create_scan(
 async def get_scans(
     skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)
 ):
-    """Получить список всех сканирований"""
     service = ScanService(db)
     scans = await service.get_all(skip=skip, limit=limit)
     return scans
@@ -50,7 +44,6 @@ async def get_scans(
 
 @router.get("/{scan_id}", response_model=Scan)
 async def get_scan(scan_id: int, db: AsyncSession = Depends(get_db)):
-    """Получить сканирование по ID"""
     service = ScanService(db)
     scan = await service.get_by_id(scan_id)
     if not scan:
