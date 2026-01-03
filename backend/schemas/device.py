@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Union, Any
 from datetime import datetime
+import json
 
 
 class DeviceBase(BaseModel):
@@ -11,7 +12,30 @@ class DeviceBase(BaseModel):
     manufacturer: Optional[str] = None
     model: Optional[str] = None
     operating_system: Optional[str] = None
-    open_ports: Optional[str] = None
+
+    # 🔥 разрешаем str | list
+    open_ports: Optional[Union[str, List[Any]]] = None
+
+    @field_validator("open_ports", mode="before")
+    @classmethod
+    def normalize_open_ports(cls, value):
+        """
+        Приводим open_ports к JSON-строке,
+        если пришёл list (или что-то ещё)
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, str):
+            return value
+
+        if isinstance(value, list):
+            try:
+                return json.dumps(value)
+            except Exception:
+                return "[]"
+
+        return str(value)
 
 
 class DeviceCreate(DeviceBase):

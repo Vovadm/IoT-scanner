@@ -18,3 +18,4 @@ typing_extensions==4.15.0
 uvicorn==0.40.0
 python-nmap==0.7.1
 psycopg2-binary==2.9.11
+requests==2.32.5
