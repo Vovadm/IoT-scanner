@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import nmap  # python-nmap
+import nmap
 import requests
 
 logger = logging.getLogger("ScannerService")
@@ -46,7 +46,6 @@ def _banner_grab(host: str, port: int, timeout: float = 1.0) -> Optional[str]:
 
 
 def ssdp_probe(timeout: float = 2.0) -> List[Dict[str, Any]]:
-    """Multicast M-SEARCH to discover UPnP/SSDP devices on the local network."""
     MCAST_GRP = "239.255.255.250"
     MCAST_PORT = 1900
     msg = "\r\n".join(
@@ -129,6 +128,8 @@ async def tls_cert_subject(
             ) as sock:
                 with ctx.wrap_socket(sock, server_hostname=host) as ss:
                     cert = ss.getpeercert()
+                    if not cert:
+                        return None
                     subj = cert.get("subject", ())
                     for tup in subj:
                         for k, v in tup:
@@ -204,7 +205,10 @@ class ScannerService:
         logger.info("Detailed scan start: %s", host)
         loop = asyncio.get_running_loop()
 
-        nm_args = "-sS -sV -O -p 1-1024 -T4 --script=banner,http-title -Pn --host-timeout 5s"
+        nm_args = (
+            "-sS -sV -O -p 1-1024 -T4 "
+            "--script=banner,http-title -Pn --host-timeout 5s"
+        )
         try:
             await loop.run_in_executor(
                 None, lambda: self.nm.scan(hosts=host, arguments=nm_args)

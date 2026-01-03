@@ -17,7 +17,6 @@ ALLOWED_FIELDS = {
     "operating_system",
     "open_ports",
     "extra_info",
-    # ⚠️ os — обрабатываем отдельно, но НЕ пишем напрямую
 }
 
 
@@ -46,16 +45,13 @@ class DeviceService:
         existing_device = await self.repository.get_by_ip(ip)
         filtered: Dict[str, Any] = {"ip_address": ip}
 
-        # ===== ОСНОВНЫЕ ПОЛЯ =====
         for k, v in device_data.items():
             if k in ALLOWED_FIELDS and v is not None:
                 filtered[k] = v
 
-        # ===== OS → operating_system =====
         if device_data.get("os"):
             filtered["operating_system"] = device_data["os"]
 
-        # ===== open_ports =====
         open_ports = filtered.get("open_ports")
         if isinstance(open_ports, str):
             try:
@@ -68,7 +64,6 @@ class DeviceService:
         elif open_ports is None:
             filtered["open_ports"] = []
 
-        # ===== extra_info =====
         extra_info = {}
         if device_data.get("ssdp"):
             extra_info["ssdp"] = device_data["ssdp"]
@@ -90,7 +85,6 @@ class DeviceService:
         if extra_info:
             filtered["extra_info"] = extra_info
 
-        # ===== UPDATE / CREATE =====
         if existing_device:
             for key, value in filtered.items():
                 if hasattr(existing_device, key):
@@ -109,11 +103,4 @@ class DeviceService:
         device_data: dict,
         ports: List[int],
     ) -> List[dict]:
-        """
-        Заглушка.
-        В будущем:
-        - CVE по banner / product / version
-        - NVD API
-        - exploit-db
-        """
         return []
