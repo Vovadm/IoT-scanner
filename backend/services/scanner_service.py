@@ -1,15 +1,19 @@
+# backend/services/scanner_service.py
 import asyncio
 import json
 import logging
 import socket
 import ssl
 import re
+import subprocess
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import nmap
 import requests
+import nmap  # python-nmap
+from zeroconf import Zeroconf, ServiceBrowser, ServiceStateChange
 
 logger = logging.getLogger("ScannerService")
 logger.setLevel(logging.INFO)
@@ -43,6 +47,42 @@ def _banner_grab(host: str, port: int, timeout: float = 1.0) -> Optional[str]:
     except Exception:
         return None
     return None
+
+
+def arp_scan(timeout: int = 10) -> List[Dict[str, Any]]:
+    """
+    Использует системную утилиту `arp-scan` (устанавливается в Dockerfile).
+    Возвращает список dict: {"ip": "...", "mac": "...", "vendor": "..."}.
+    """
+    results: List[Dict[str, Any]] = []
+    try:
+        # -l = локальная подсеть, --localnet можно заменить под конкретный интерфейс
+        proc = subprocess.run(
+            ["arp-scan", "-l", "--retry=1", "--timeout=200"],
+            capture_output=True,
+            text=True,
+            timeout=timeout + 2,
+        )
+        out = proc.stdout
+        # Строки: "192.168.1.1\taa:bb:cc:dd:ee:ff\tVendor name"
+        for line in out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = re.split(r"\s+", line)
+            if len(parts) >= 2 and re.match(r"\d+\.\d+\.\d+\.\d+", parts[0]):
+                ip = parts[0]
+                mac = parts[1]
+                vendor = " ".join(parts[2:]) if len(parts) > 2 else None
+                # skip header/summary lines
+                if ip.lower().startswith("interface") or "packets" in line.lower():
+                    continue
+                results.append({"ip": ip, "mac": mac, "vendor": vendor})
+    except FileNotFoundError:
+        logger.debug("arp-scan not installed")
+    except Exception as e:
+        logger.debug("arp_scan failed: %s", e)
+    return results
 
 
 def ssdp_probe(timeout: float = 2.0) -> List[Dict[str, Any]]:
@@ -88,6 +128,60 @@ def ssdp_probe(timeout: float = 2.0) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.debug("SSDP probe failed: %s", e)
     return results
+
+
+def mdns_probe(timeout: float = 2.0) -> List[Dict[str, Any]]:
+    """
+    Простая mDNS / Zeroconf sweep.
+    Возвращает records: {"ip": "...", "service": "<name>", "properties": {...}}
+    """
+    records: List[Dict[str, Any]] = []
+    try:
+        zer = Zeroconf()
+        lock = threading.Event()
+        services = {}
+
+        class _Listener:
+            def remove_service(self, zc, type_, name):
+                pass
+
+            def add_service(self, zc, type_, name):
+                try:
+                    info = zc.get_service_info(type_, name, timeout=1000)
+                    if info:
+                        # IPv4
+                        if info.addresses:
+                            for addr in info.addresses:
+                                ip = socket.inet_ntoa(addr)
+                                rec = {
+                                    "ip": ip,
+                                    "service_name": name,
+                                    "type": type_,
+                                    "properties": {
+                                        k.decode() if isinstance(k, bytes) else k:
+                                        v.decode() if isinstance(v, bytes) else v
+                                        for k, v in (info.properties or {}).items()
+                                    },
+                                }
+                                records.append(rec)
+                except Exception:
+                    pass
+
+        # Browse common service types, but we can also browse '_services._dns-sd._udp.local.'
+        # For speed: browse a selection
+        common = [
+            "_http._tcp.local.",
+            "_ipp._tcp.local.",
+            "_printer._tcp.local.",
+            "_googlecast._tcp.local.",
+            "_hap._tcp.local.",
+        ]
+        browsers = [ServiceBrowser(zer, s, _Listener()) for s in common]
+        lock.wait(timeout)
+        zer.close()
+    except Exception as e:
+        logger.debug("mdns_probe failed: %s", e)
+    return records
 
 
 async def http_probe(
@@ -142,6 +236,21 @@ async def tls_cert_subject(
         return None
 
 
+def get_vendor_from_api(mac: str, timeout: float = 2.0) -> Optional[str]:
+    """
+    Простая попытка получить vendor по MAC (через macvendors API).
+    Работает только если контейнер/машина подключены в интернет и API доступен.
+    """
+    try:
+        mac_simple = mac.replace(":", "-")
+        r = requests.get(f"https://api.macvendors.com/{mac_simple}", timeout=timeout)
+        if r.status_code == 200:
+            return r.text.strip()
+    except Exception:
+        pass
+    return None
+
+
 class ScannerService:
     def __init__(self) -> None:
         self.nm = nmap.PortScanner()
@@ -159,6 +268,7 @@ class ScannerService:
         logger.info("Starting discovery for %s", network)
         loop = asyncio.get_running_loop()
 
+        # Discovery via nmap -sn
         try:
             await loop.run_in_executor(
                 None,
@@ -170,24 +280,44 @@ class ScannerService:
             logger.exception("Discovery nmap failed: %s", e)
             return []
 
-        hosts = self.nm.all_hosts()
-        logger.info("Discovery hosts: %s", hosts)
+        nmap_hosts = self.nm.all_hosts()
+        logger.info("Discovery hosts (nmap): %s", nmap_hosts)
 
+        # ARP scan (fast, gives MAC + vendor)
+        arp_results = await asyncio.to_thread(arp_scan)
+        arp_map = {r["ip"]: r for r in arp_results}
+
+        # SSDP + mDNS
         ssdp_results = await asyncio.to_thread(ssdp_probe)
-        if ssdp_results:
-            logger.info("SSDP results: %d", len(ssdp_results))
+        mdns_results = await asyncio.to_thread(mdns_probe)
+
         ssdp_map = {}
         for r in ssdp_results:
             ip = r.get("src")
             ssdp_map.setdefault(ip, []).append(r.get("headers"))
 
+        mdns_map = {}
+        for r in mdns_results:
+            ip = r.get("ip")
+            mdns_map.setdefault(ip, []).append(
+                {"service_name": r.get("service_name"), "properties": r.get("properties")}
+            )
+
+        # union of hosts from nmap and arp (ARP can find devices nmap missed and vice versa)
+        hosts_set = set(nmap_hosts) | set(arp_map.keys())
+
         sem = asyncio.Semaphore(concurrency)
 
         async def _work(h):
             async with sem:
-                return await self._detailed_scan_host(h, ssdp_map.get(h))
+                return await self._detailed_scan_host(
+                    h,
+                    ssdp_headers=ssdp_map.get(h),
+                    mdns_records=mdns_map.get(h),
+                    arp_info=arp_map.get(h),
+                )
 
-        tasks = [asyncio.create_task(_work(h)) for h in hosts]
+        tasks = [asyncio.create_task(_work(h)) for h in hosts_set]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         devices = []
@@ -200,31 +330,33 @@ class ScannerService:
         return devices
 
     async def _detailed_scan_host(
-        self, host: str, ssdp_headers: Optional[List[Dict[str, Any]]] = None
+        self,
+        host: str,
+        ssdp_headers: Optional[List[Dict[str, Any]]] = None,
+        mdns_records: Optional[List[Dict[str, Any]]] = None,
+        arp_info: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         logger.info("Detailed scan start: %s", host)
         loop = asyncio.get_running_loop()
 
-        nm_args = (
-            "-sS -sV -O -p 1-1024 -T4 "
-            "--script=banner,http-title -Pn --host-timeout 5s"
-        )
+        # Heavier nmap scan - may require root for -sS and -O
+        nm_args = "-sV -p 1-1024 -T4 --script=banner,http-title -Pn --host-timeout 5s"
         try:
             await loop.run_in_executor(
                 None, lambda: self.nm.scan(hosts=host, arguments=nm_args)
             )
         except Exception as e:
-            logger.exception("nmap heavy scan failed for %s: %s", host, e)
-            return None
+            logger.debug("nmap heavy scan failed for %s: %s", host, e)
 
+        info = {}
         try:
             info = self.nm[host]
         except Exception:
-            logger.debug("No nmap info for %s", host)
-            return None
+            info = {}
 
         addresses = info.get("addresses", {}) or {}
-        mac = addresses.get("mac")
+        mac = addresses.get("mac") or (arp_info.get("mac") if arp_info else None)
+        vendor = arp_info.get("vendor") if arp_info else None
         hostnames = info.get("hostnames", []) or []
         hostname = hostnames[0].get("name") if hostnames else None
         osmatches = info.get("osmatch", []) or []
@@ -263,8 +395,9 @@ class ScannerService:
 
                 http_info = {}
                 if (
-                    service and service.lower() in {"http", "http-proxy"}
-                ) or int(port) in {80, 8080, 8000, 443}:
+                    (service and service.lower() in {"http", "http-proxy"})
+                    or int(port) in {80, 8080, 8000, 443}
+                ):
                     use_https = int(port) in {443, 8443}
                     http_info = await http_probe(
                         host, int(port), use_https=use_https, timeout=3.0
@@ -294,17 +427,27 @@ class ScannerService:
         if any(p["port"] == 443 for p in open_ports):
             cert_subj = await tls_cert_subject(host, 443, timeout=2.0)
 
+        # if we have mac but no vendor, try external API (best-effort)
+        if mac and not vendor:
+            try:
+                vendor = await asyncio.to_thread(get_vendor_from_api, mac)
+            except Exception:
+                vendor = None
+
         device_type = self._detect_device_type_from_ports(open_ports)
         ssdp_info = ssdp_headers or []
+        mdns_info = mdns_records or []
 
         result = {
             "ip_address": host,
             "mac_address": mac,
             "hostname": hostname,
             "device_type": device_type,
+            "manufacturer": vendor,
             "open_ports": open_ports,
             "os": os_name,
             "ssdp": ssdp_info,
+            "mdns": mdns_info,
             "tls_subject": cert_subj,
         }
 
