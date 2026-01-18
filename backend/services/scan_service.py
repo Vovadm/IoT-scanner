@@ -1,25 +1,23 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, cast
 
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from repositories.scan_repository import ScanRepository
-from repositories.device_repository import DeviceRepository
-from repositories.vulnerability_repository import VulnerabilityRepository
-from services.scanner_service import ScannerService
-from services.device_service import DeviceService
-from schemas.scan import Scan, ScanCreate, ScanResponse
 from models.enums import ScanStatus
 from models.device import scan_devices_association
+from repositories.device_repository import DeviceRepository
+from repositories.scan_repository import ScanRepository
+from repositories.vulnerability_repository import VulnerabilityRepository
+from schemas.scan import Scan, ScanCreate, ScanResponse
+from services.scanner_service import ScannerService
 
 if TYPE_CHECKING:
     from models.device import Device
 
 logger = logging.getLogger("ScanService")
-logger.setLevel(logging.INFO)
 
 
 class ScanService:
@@ -29,7 +27,7 @@ class ScanService:
         self.device_repository = DeviceRepository(session)
         self.vulnerability_repository = VulnerabilityRepository(session)
         self.scanner_service = ScannerService()
-        self.device_service = DeviceService(session)
+
         logger.info("ScanService initialized")
 
     async def create_scan(self, scan_data: ScanCreate) -> ScanResponse:
@@ -46,16 +44,19 @@ class ScanService:
         await self.session.refresh(scan)
 
         logger.info("Scan created with id: %s", scan.id)
+
         return ScanResponse(
             scan=Scan.model_validate(scan),
             message="Scan started successfully",
         )
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> List[Scan]:
+        logger.debug("Fetching scans list")
         scans = await self.repository.get_all_ordered(skip=skip, limit=limit)
         return [Scan.model_validate(scan) for scan in scans]
 
     async def get_by_id(self, scan_id: int) -> Optional[Scan]:
+        logger.debug("Fetching scan by id: %s", scan_id)
         scan = await self.repository.get_by_id(scan_id)
         return Scan.model_validate(scan) if scan else None
 
@@ -69,92 +70,71 @@ class ScanService:
 
         await self.repository.update_status(scan_id, ScanStatus.RUNNING)
         await self.session.commit()
+        logger.info("Scan id %s status updated to RUNNING", scan_id)
 
         try:
             devices_data = await self.scanner_service.scan_network(
-                scan.target_network
+                cast(str, scan.target_network)
             )
 
             devices_found = 0
-            total = len(devices_data)
 
-            for idx, device_data in enumerate(devices_data, start=1):
+            for device_data in devices_data:
                 device = await self._get_or_create_device(device_data)
 
                 await self.session.execute(
                     insert(scan_devices_association).values(
-                        scan_id=int(scan_id),
-                        device_id=int(device.id),
+                        scan_id=scan_id,
+                        device_id=device.id,
                     )
                 )
 
-                ports_field = device_data.get("open_ports", [])
-                ports_list = []
+                ports_data = json.loads(device_data.get("open_ports", "[]"))
 
-                if isinstance(ports_field, str):
-                    try:
-                        parsed = json.loads(ports_field)
-                        if isinstance(parsed, list):
-                            ports_list = parsed
-                    except Exception:
-                        ports_list = []
-                elif isinstance(ports_field, list):
-                    ports_list = ports_field
-
-                ports_ints = [
-                    p.get("port")
-                    for p in ports_list
-                    if isinstance(p, dict) and p.get("port")
-                ]
-
-                vulnerabilities_data = (
-                    await self.device_service.scan_device_vulnerabilities(
-                        device_data, ports_ints
-                    )
+                vulns = await self.scanner_service.scan_device_vulnerabilities(
+                    device_data, ports_data
                 )
 
+                device_id = cast(int, device.id)
                 await self.vulnerability_repository.delete_by_device_id(
-                    int(device.id)
+                    device_id
                 )
 
-                for vuln_data in vulnerabilities_data:
+                for vuln in vulns:
                     await self.vulnerability_repository.create(
-                        device_id=int(device.id),
-                        **vuln_data,
+                        device_id=device.id,
+                        **vuln,
                     )
 
                 devices_found += 1
                 logger.info(
                     "Processed device %s (%d/%d)",
                     device.ip_address,
-                    idx,
-                    total,
+                    devices_found,
+                    len(devices_data),
                 )
 
             await self.repository.update(
                 scan_id,
                 status=ScanStatus.COMPLETED,
-                completed_at=datetime.utcnow(),  # 🔥 FIX HERE
+                completed_at=datetime.utcnow(),
                 devices_found=devices_found,
             )
             await self.session.commit()
 
-            logger.info(
-                "Scan %s completed successfully (devices_found=%d)",
-                scan_id,
-                devices_found,
-            )
+            logger.info("Scan %s completed successfully", scan_id)
 
         except Exception:
             logger.exception("Scan %s failed", scan_id)
-            try:
-                await self.repository.update_status(
-                    scan_id, ScanStatus.FAILED
-                )
-                await self.session.commit()
-            except Exception:
-                logger.exception("Failed to mark scan as FAILED")
+            await self.repository.update_status(scan_id, ScanStatus.FAILED)
+            await self.session.commit()
             raise
 
     async def _get_or_create_device(self, device_data: dict) -> "Device":
-        return await self.device_service.get_or_create_by_ip(device_data)
+        from services.device_service import DeviceService
+
+        device_service = DeviceService(self.session)
+        device = await device_service.get_or_create_by_ip(device_data)
+
+        logger.debug("Device resolved: %s", device.ip_address)
+        return device

@@ -19,7 +19,3 @@ uvicorn==0.40.0
 python-nmap==0.7.1
 psycopg2-binary==2.9.11
 requests==2.32.5
-zeroconf==0.148.0
-scapy==2.5.0
-pysnmp==4.4.12
-mac-vendor-lookup==0.1.12
