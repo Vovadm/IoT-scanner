@@ -43,3 +43,6 @@ Thumbs.db
 *.db
 *.sqlite
 
+# Docker
+.dockerignore
+

@@ -16,7 +16,9 @@ class DeviceService:
         devices = await self.repository.get_all(skip=skip, limit=limit)
         return [Device.model_validate(device) for device in devices]
 
-    async def get_by_id(self, device_id: int) -> Optional[DeviceWithVulnerabilities]:
+    async def get_by_id(
+        self, device_id: int
+    ) -> Optional[DeviceWithVulnerabilities]:
         device = await self.repository.get_with_vulnerabilities(device_id)
         if not device:
             return None

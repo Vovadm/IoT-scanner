@@ -12,11 +12,18 @@ class ScanRepository(BaseRepository[Scan]):
     def __init__(self, session: AsyncSession):
         super().__init__(Scan, session)
 
-    async def get_all_ordered(self, skip: int = 0, limit: int = 100) -> List[Scan]:
+    async def get_all_ordered(
+        self, skip: int = 0, limit: int = 100
+    ) -> List[Scan]:
         result = await self.session.execute(
-            select(Scan).order_by(desc(Scan.created_at)).offset(skip).limit(limit)
+            select(Scan)
+            .order_by(desc(Scan.created_at))
+            .offset(skip)
+            .limit(limit)
         )
         return list(result.scalars().all())
 
-    async def update_status(self, scan_id: int, status: ScanStatus) -> Optional[Scan]:
+    async def update_status(
+        self, scan_id: int, status: ScanStatus
+    ) -> Optional[Scan]:
         return await self.update(scan_id, status=status)

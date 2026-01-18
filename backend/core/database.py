@@ -21,7 +21,9 @@ SessionLocal = sessionmaker(
 )
 
 
-ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+ASYNC_DATABASE_URL = DATABASE_URL.replace(
+    "postgresql://", "postgresql+asyncpg://"
+)
 
 async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=False, future=True)
 

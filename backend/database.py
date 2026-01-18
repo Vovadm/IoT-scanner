@@ -9,7 +9,9 @@ from core.config import settings
 DATABASE_URL = settings.database_url
 
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker[Session](autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker[Session](
+    autocommit=False, autoflush=False, bind=engine
+)
 Base = declarative_base()
 
 
