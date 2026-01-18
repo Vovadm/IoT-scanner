@@ -26,9 +26,7 @@ async def get_vulnerabilities(
 
 
 @router.get("/{vulnerability_id}", response_model=Vulnerability)
-async def get_vulnerability(
-    vulnerability_id: int, db: AsyncSession = Depends(get_db)
-):
+async def get_vulnerability(vulnerability_id: int, db: AsyncSession = Depends(get_db)):
     service = VulnerabilityService(db)
     vulnerability = await service.get_by_id(vulnerability_id)
     if not vulnerability:

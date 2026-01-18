@@ -93,23 +93,17 @@ class IoTScanner:
 
             if service == "telnet" and port == 23:
                 vulnerabilities.append(
-                    self._make_vuln(
-                        v["telnet_open"], VulnerabilitySeverity.HIGH, port
-                    )
+                    self._make_vuln(v["telnet_open"], VulnerabilitySeverity.HIGH, port)
                 )
 
             if service == "ftp" and port == 21:
                 vulnerabilities.append(
-                    self._make_vuln(
-                        v["ftp_open"], VulnerabilitySeverity.MEDIUM, port
-                    )
+                    self._make_vuln(v["ftp_open"], VulnerabilitySeverity.MEDIUM, port)
                 )
 
             if service == "http" and port in {80, 8080, 8000}:
                 vulnerabilities.append(
-                    self._make_vuln(
-                        v["http_open"], VulnerabilitySeverity.MEDIUM, port
-                    )
+                    self._make_vuln(v["http_open"], VulnerabilitySeverity.MEDIUM, port)
                 )
 
             if service == "ssh":
@@ -129,16 +123,12 @@ class IoTScanner:
 
             if service == "upnp" or port == 1900:
                 vulnerabilities.append(
-                    self._make_vuln(
-                        v["upnp"], VulnerabilitySeverity.MEDIUM, port
-                    )
+                    self._make_vuln(v["upnp"], VulnerabilitySeverity.MEDIUM, port)
                 )
 
             if service in {"smb", "microsoft-ds"} and port in {139, 445}:
                 vulnerabilities.append(
-                    self._make_vuln(
-                        v["smb_open"], VulnerabilitySeverity.HIGH, port
-                    )
+                    self._make_vuln(v["smb_open"], VulnerabilitySeverity.HIGH, port)
                 )
 
         if len(ports_data) > 10:

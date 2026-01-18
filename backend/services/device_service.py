@@ -30,9 +30,7 @@ class DeviceService:
         devices = await self.repository.get_all(skip=skip, limit=limit)
         return [Device.model_validate(device) for device in devices]
 
-    async def get_by_id(
-        self, device_id: int
-    ) -> Optional[DeviceWithVulnerabilities]:
+    async def get_by_id(self, device_id: int) -> Optional[DeviceWithVulnerabilities]:
         device = await self.repository.get_with_vulnerabilities(device_id)
         if not device:
             return None
@@ -74,6 +72,8 @@ class DeviceService:
             extra_info["mdns"] = device_data["mdns"]
         if "tls_subject" in device_data and device_data["tls_subject"]:
             extra_info["tls_subject"] = device_data["tls_subject"]
+        if "snmp" in device_data and device_data["snmp"]:
+            extra_info["snmp"] = device_data["snmp"]
 
         # try to guess manufacturer from http headers banner or existing field
         if not filtered.get("manufacturer"):

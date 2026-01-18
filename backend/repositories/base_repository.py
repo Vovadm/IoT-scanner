@@ -18,9 +18,7 @@ class BaseRepository(Generic[ModelType]):
         )
         return result.scalar_one_or_none()
 
-    async def get_all(
-        self, skip: int = 0, limit: int = 100
-    ) -> List[ModelType]:
+    async def get_all(self, skip: int = 0, limit: int = 100) -> List[ModelType]:
         result: Result = await self.session.execute(
             select(self.model).offset(skip).limit(limit)
         )
@@ -47,9 +45,7 @@ class BaseRepository(Generic[ModelType]):
         await self.session.flush()
         return getattr(result, "rowcount", 0) > 0
 
-    async def get_by_field(
-        self, field_name: str, value: object
-    ) -> Optional[ModelType]:
+    async def get_by_field(self, field_name: str, value: object) -> Optional[ModelType]:
         field = getattr(self.model, field_name)
         result: Result = await self.session.execute(
             select(self.model).where(field == value)

@@ -15,9 +15,7 @@ class DeviceRepository(BaseRepository[Device]):
     async def get_by_ip(self, ip_address: str) -> Optional[Device]:
         return await self.get_by_field("ip_address", ip_address)
 
-    async def get_with_vulnerabilities(
-        self, device_id: int
-    ) -> Optional[Device]:
+    async def get_with_vulnerabilities(self, device_id: int) -> Optional[Device]:
         result = await self.session.execute(
             select(Device)
             .where(Device.id == device_id)
