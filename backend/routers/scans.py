@@ -27,6 +27,7 @@ async def create_scan(
     service = ScanService(db)
     scan_response = await service.create_scan(scan_data)
 
+    # Запускаем сканирование в фоне
     background_tasks.add_task(scan_network_background, scan_response.scan.id)
 
     return scan_response

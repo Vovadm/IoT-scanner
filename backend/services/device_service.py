@@ -18,6 +18,7 @@ ALLOWED_FIELDS = {
     "operating_system",
     "open_ports",
     "extra_info",
+    # ⚠️ os — обрабатываем отдельно, но НЕ пишем напрямую
 }
 
 
@@ -44,16 +45,13 @@ class DeviceService:
         existing_device = await self.repository.get_by_ip(ip)
         filtered: Dict[str, Any] = {"ip_address": ip}
 
-        # copy allowed fields
         for k, v in device_data.items():
             if k in ALLOWED_FIELDS and v is not None:
                 filtered[k] = v
 
-        # os -> operating_system
         if device_data.get("os"):
             filtered["operating_system"] = device_data["os"]
 
-        # normalize open_ports to list for JSON column
         open_ports = filtered.get("open_ports")
         if isinstance(open_ports, str):
             try:
@@ -64,9 +62,8 @@ class DeviceService:
         elif open_ports is None:
             filtered["open_ports"] = []
 
-        # extra_info: combine ssdp/mdns/tls/http into extra_info JSON
-        extra_info: Dict[str, Any] = {}
-        if "ssdp" in device_data and device_data["ssdp"]:
+        extra_info = {}
+        if device_data.get("ssdp"):
             extra_info["ssdp"] = device_data["ssdp"]
         if "mdns" in device_data and device_data["mdns"]:
             extra_info["mdns"] = device_data["mdns"]
@@ -91,7 +88,6 @@ class DeviceService:
         if extra_info:
             filtered["extra_info"] = extra_info
 
-        # update existing or create
         if existing_device:
             for key, value in filtered.items():
                 if hasattr(existing_device, key) and value is not None:
@@ -110,5 +106,4 @@ class DeviceService:
         device_data: dict,
         ports: List[int],
     ) -> List[dict]:
-        # Заглушка, можно расширить: CVE lookup по баннерам, NVD, vulners API и т.д.
         return []

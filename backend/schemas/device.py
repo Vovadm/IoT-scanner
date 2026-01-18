@@ -13,11 +13,16 @@ class DeviceBase(BaseModel):
     model: Optional[str] = None
     operating_system: Optional[str] = None
 
+    # 🔥 разрешаем str | list
     open_ports: Optional[Union[str, List[Any]]] = None
 
     @field_validator("open_ports", mode="before")
     @classmethod
     def normalize_open_ports(cls, value):
+        """
+        Приводим open_ports к JSON-строке,
+        если пришёл list (или что-то ещё)
+        """
         if value is None:
             return None
 

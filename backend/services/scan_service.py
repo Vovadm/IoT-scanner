@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING, cast
+from typing import List, Optional, TYPE_CHECKING
 
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,8 +71,9 @@ class ScanService:
         await self.session.commit()
 
         try:
-            network = cast(str, scan.target_network)
-            devices_data = await self.scanner_service.scan_network(network)
+            devices_data = await self.scanner_service.scan_network(
+                scan.target_network
+            )
 
             devices_found = 0
             total = len(devices_data)
@@ -83,7 +84,7 @@ class ScanService:
                 await self.session.execute(
                     insert(scan_devices_association).values(
                         scan_id=int(scan_id),
-                        device_id=cast(int, device.id),
+                        device_id=int(device.id),
                     )
                 )
 
@@ -100,19 +101,11 @@ class ScanService:
                 elif isinstance(ports_field, list):
                     ports_list = ports_field
 
-                ports_ints: List[int] = []
-                for p in ports_list:
-                    if not isinstance(p, dict):
-                        continue
-                    port_val = p.get("port")
-                    if isinstance(port_val, int):
-                        ports_ints.append(port_val)
-                        continue
-                    if isinstance(port_val, str):
-                        try:
-                            ports_ints.append(int(port_val))
-                        except Exception:
-                            continue
+                ports_ints = [
+                    p.get("port")
+                    for p in ports_list
+                    if isinstance(p, dict) and p.get("port")
+                ]
 
                 vulnerabilities_data = (
                     await self.device_service.scan_device_vulnerabilities(
@@ -121,12 +114,12 @@ class ScanService:
                 )
 
                 await self.vulnerability_repository.delete_by_device_id(
-                    cast(int, device.id)
+                    int(device.id)
                 )
 
                 for vuln_data in vulnerabilities_data:
                     await self.vulnerability_repository.create(
-                        device_id=cast(int, device.id),
+                        device_id=int(device.id),
                         **vuln_data,
                     )
 
@@ -141,7 +134,7 @@ class ScanService:
             await self.repository.update(
                 scan_id,
                 status=ScanStatus.COMPLETED,
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.utcnow(),  # 🔥 FIX HERE
                 devices_found=devices_found,
             )
             await self.session.commit()
@@ -155,7 +148,9 @@ class ScanService:
         except Exception:
             logger.exception("Scan %s failed", scan_id)
             try:
-                await self.repository.update_status(scan_id, ScanStatus.FAILED)
+                await self.repository.update_status(
+                    scan_id, ScanStatus.FAILED
+                )
                 await self.session.commit()
             except Exception:
                 logger.exception("Failed to mark scan as FAILED")

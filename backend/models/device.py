@@ -25,8 +25,10 @@ class Device(Base):
     model = Column(String(100), nullable=True)
     operating_system = Column(String(100), nullable=True)
 
+    # open_ports хранится как JSON (список словарей)
     open_ports = Column(JSON, nullable=True)
 
+    # доп. информация (ssdp, tls_subject, http headers/title и т.п.)
     extra_info = Column(JSON, nullable=True)
 
     last_seen = Column(DateTime(timezone=True), default=utcnow)

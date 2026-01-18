@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import nmap
 import requests
 import nmap
 from zeroconf import Zeroconf, ServiceListener
@@ -141,6 +142,7 @@ def scapy_arp_scan(network: str, timeout: int = 3) -> List[Dict[str, Any]]:
 
 
 def ssdp_probe(timeout: float = 2.0) -> List[Dict[str, Any]]:
+    """Multicast M-SEARCH to discover UPnP/SSDP devices on the local network."""
     MCAST_GRP = "239.255.255.250"
     MCAST_PORT = 1900
     msg = "\r\n".join(
@@ -278,8 +280,6 @@ async def tls_cert_subject(
             ) as sock:
                 with ctx.wrap_socket(sock, server_hostname=host) as ss:
                     cert = ss.getpeercert()
-                    if not cert:
-                        return None
                     subj = cert.get("subject", ())
                     for tup in subj:
                         for k, v in tup:
@@ -477,9 +477,10 @@ class ScannerService:
         logger.info("Detailed scan start: %s", host)
         loop = asyncio.get_running_loop()
 
-        # Heavier nmap scan per host (isolated instance to avoid shared state)
-        nm_args = "-sV -p 1-1024 -T4 --script=banner,http-title -Pn --host-timeout 5s"
-        info: Dict[str, Any] = {}
+        nm_args = (
+            "-sS -sV -O -p 1-1024 -T4 "
+            "--script=banner,http-title -Pn --host-timeout 5s"
+        )
         try:
             nm = nmap.PortScanner()
             await loop.run_in_executor(
