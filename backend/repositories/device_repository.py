@@ -1,10 +1,11 @@
-from typing import Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Optional
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from repositories.base_repository import BaseRepository
 from models.device import Device
+from repositories.base_repository import BaseRepository
 
 
 class DeviceRepository(BaseRepository[Device]):

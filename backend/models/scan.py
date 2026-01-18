@@ -1,11 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy import Column, DateTime, Enum, Integer, String
 from sqlalchemy.orm import relationship
 
 from core.database import Base
-from models.enums import ScanStatus
 from models.device import scan_devices_association
+from models.enums import ScanStatus
 
 
 class Scan(Base):

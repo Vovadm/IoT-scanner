@@ -1,7 +1,7 @@
 import logging
 
-from core.database import Base, engine
 import models  # noqa: F401
+from core.database import Base, engine
 
 
 def init_db() -> None:

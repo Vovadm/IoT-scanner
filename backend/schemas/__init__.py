@@ -1,10 +1,10 @@
-from .device import DeviceBase, DeviceCreate, Device, DeviceWithVulnerabilities
-from .scan import ScanBase, ScanCreate, Scan, ScanResponse
+from .device import Device, DeviceBase, DeviceCreate, DeviceWithVulnerabilities
+from .scan import Scan, ScanBase, ScanCreate, ScanResponse
 from .vulnerability import (
+    Vulnerability,
     VulnerabilityBase,
     VulnerabilityCreate,
     VulnerabilityUpdate,
-    Vulnerability,
 )
 
 __all__ = [

@@ -1,4 +1,5 @@
-from sqlalchemy import Table, Column, Integer, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, Table
+
 from core.database import Base
 
 scan_devices_association = Table(

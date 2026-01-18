@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from core.database import get_db
-from services.device_service import DeviceService
 from schemas.device import Device, DeviceWithVulnerabilities
+from services.device_service import DeviceService
 
 router = APIRouter()
 

@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from core.database import get_db
-from services.vulnerability_service import VulnerabilityService
-from schemas.vulnerability import Vulnerability, VulnerabilityUpdate
 from models.enums import VulnerabilitySeverity
+from schemas.vulnerability import Vulnerability, VulnerabilityUpdate
+from services.vulnerability_service import VulnerabilityService
 
 router = APIRouter()
 

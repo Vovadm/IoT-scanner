@@ -25,14 +25,15 @@ export default function DeviceDetailPage() {
 
 	const { device, loading, error, refresh } = useDevice(deviceId);
 
-	useEffect(() => {
-		if (deviceId) {
-			const interval = setInterval(() => {
-				refresh();
-			}, 5000);
-			return () => clearInterval(interval);
-		}
-	}, [deviceId, refresh]);
+	// Auto-refresh disabled - uncomment to enable
+	// useEffect(() => {
+	// 	if (deviceId) {
+	// 		const interval = setInterval(() => {
+	// 			refresh();
+	// 		}, 5000);
+	// 		return () => clearInterval(interval);
+	// 	}
+	// }, [deviceId, refresh]);
 
 	if (loading) {
 		return (
@@ -70,9 +71,11 @@ export default function DeviceDetailPage() {
 		);
 	}
 
-	const openPorts: PortInfo[] = device.open_ports
-		? JSON.parse(device.open_ports)
-		: [];
+	const openPorts: PortInfo[] = Array.isArray(device.open_ports)
+		? device.open_ports
+		: device.open_ports
+			? JSON.parse(device.open_ports)
+			: [];
 	const criticalVulns = device.vulnerabilities.filter(
 		(v) => v.severity === VulnerabilitySeverity.CRITICAL
 	).length;

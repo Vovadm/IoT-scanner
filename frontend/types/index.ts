@@ -1,3 +1,7 @@
+// Re-export enums
+export { VulnerabilitySeverity, ScanStatus } from "./enums";
+import { VulnerabilitySeverity, ScanStatus } from "./enums";
+
 export interface Device {
 	id: number;
 	ip_address: string;
@@ -7,7 +11,7 @@ export interface Device {
 	manufacturer?: string;
 	model?: string;
 	operating_system?: string;
-	open_ports?: string;
+	open_ports?: PortInfo[] | string;
 	last_seen: string;
 	created_at: string;
 	updated_at: string;
@@ -42,10 +46,6 @@ export interface Scan {
 	devices_found: number;
 	created_at: string;
 }
-
-export type ScanStatus = "pending" | "running" | "completed" | "failed";
-
-export type VulnerabilitySeverity = "low" | "medium" | "high" | "critical";
 
 export interface PortInfo {
 	port: number;

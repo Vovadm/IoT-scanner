@@ -1,10 +1,11 @@
-from typing import Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from typing import List, Optional
 
-from repositories.base_repository import BaseRepository
-from models.scan import Scan
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from models.enums import ScanStatus
+from models.scan import Scan
+from repositories.base_repository import BaseRepository
 
 
 class ScanRepository(BaseRepository[Scan]):

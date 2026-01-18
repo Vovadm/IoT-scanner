@@ -46,3 +46,17 @@ Thumbs.db
 # Docker
 .dockerignore
 
+# Go scanner binary
+backend/scanner/scanner
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.dylib
+
+# Misc
+*.log
+*.tmp
+*.bak
+

@@ -19,19 +19,16 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: iot-scanner-backend
-    ports:
-      - "8000:8000"
+    network_mode: host
     env_file:
       - ./.env
     depends_on:
       postgres:
         condition: service_healthy
-
     privileged: true
     cap_add:
       - NET_ADMIN
       - NET_RAW
-
     volumes:
       - ./backend:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

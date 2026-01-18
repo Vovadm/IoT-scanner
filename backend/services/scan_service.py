@@ -1,18 +1,16 @@
-import json
 import logging
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import insert
+from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.enums import ScanStatus
 from models.device import scan_devices_association
+from models.enums import ScanStatus
 from repositories.device_repository import DeviceRepository
 from repositories.scan_repository import ScanRepository
 from repositories.vulnerability_repository import VulnerabilityRepository
 from schemas.scan import Scan, ScanCreate, ScanResponse
-from services.scanner_service import ScannerService
 
 if TYPE_CHECKING:
     from models.device import Device
@@ -26,7 +24,6 @@ class ScanService:
         self.repository = ScanRepository(session)
         self.device_repository = DeviceRepository(session)
         self.vulnerability_repository = VulnerabilityRepository(session)
-        self.scanner_service = ScannerService()
 
         logger.info("ScanService initialized")
 
@@ -60,76 +57,6 @@ class ScanService:
         scan = await self.repository.get_by_id(scan_id)
         return Scan.model_validate(scan) if scan else None
 
-    async def execute_scan(self, scan_id: int) -> None:
-        logger.info("Starting execution of scan id: %s", scan_id)
-
-        scan = await self.repository.get_by_id(scan_id)
-        if not scan:
-            logger.error("Scan %s not found", scan_id)
-            return
-
-        await self.repository.update_status(scan_id, ScanStatus.RUNNING)
-        await self.session.commit()
-        logger.info("Scan id %s status updated to RUNNING", scan_id)
-
-        try:
-            devices_data = await self.scanner_service.scan_network(
-                cast(str, scan.target_network)
-            )
-
-            devices_found = 0
-
-            for device_data in devices_data:
-                device = await self._get_or_create_device(device_data)
-
-                await self.session.execute(
-                    insert(scan_devices_association).values(
-                        scan_id=scan_id,
-                        device_id=device.id,
-                    )
-                )
-
-                ports_data = json.loads(device_data.get("open_ports", "[]"))
-
-                vulns = await self.scanner_service.scan_device_vulnerabilities(
-                    device_data, ports_data
-                )
-
-                device_id = cast(int, device.id)
-                await self.vulnerability_repository.delete_by_device_id(
-                    device_id
-                )
-
-                for vuln in vulns:
-                    await self.vulnerability_repository.create(
-                        device_id=device.id,
-                        **vuln,
-                    )
-
-                devices_found += 1
-                logger.info(
-                    "Processed device %s (%d/%d)",
-                    device.ip_address,
-                    devices_found,
-                    len(devices_data),
-                )
-
-            await self.repository.update(
-                scan_id,
-                status=ScanStatus.COMPLETED,
-                completed_at=datetime.utcnow(),
-                devices_found=devices_found,
-            )
-            await self.session.commit()
-
-            logger.info("Scan %s completed successfully", scan_id)
-
-        except Exception:
-            logger.exception("Scan %s failed", scan_id)
-            await self.repository.update_status(scan_id, ScanStatus.FAILED)
-            await self.session.commit()
-            raise
-
     async def _get_or_create_device(self, device_data: dict) -> "Device":
         from services.device_service import DeviceService
 
@@ -138,3 +65,67 @@ class ScanService:
 
         logger.debug("Device resolved: %s", device.ip_address)
         return device
+
+    async def link_device_to_scan(self, scan_id: int, device_id: int) -> None:
+        """Link a device to a scan (for external host scanner)."""
+        await self.session.execute(
+            insert(scan_devices_association).values(
+                scan_id=scan_id,
+                device_id=device_id,
+            )
+        )
+        await self.session.commit()
+        logger.info("Linked device %d to scan %d", device_id, scan_id)
+
+    async def complete_scan(self, scan_id: int) -> None:
+        """Mark scan as completed."""
+        scan = await self.repository.get_by_id(scan_id)
+        if not scan:
+            return
+
+        from sqlalchemy import func, select
+
+        result = await self.session.execute(
+            select(func.count()).where(
+                scan_devices_association.c.scan_id == scan_id
+            )
+        )
+        devices_found = result.scalar() or 0
+
+        await self.repository.update(
+            scan_id,
+            status=ScanStatus.COMPLETED,
+            completed_at=datetime.utcnow(),
+            devices_found=devices_found,
+        )
+        await self.session.commit()
+        logger.info(
+            "Scan %d completed with %d devices",
+            scan_id,
+            devices_found,
+        )
+
+    async def get_pending_scans(self) -> List[dict]:
+        """Get all scans with PENDING status (for Go scanner watch mode)."""
+        from models.scan import Scan as ScanModel
+
+        result = await self.session.execute(
+            select(ScanModel).where(ScanModel.status == ScanStatus.PENDING)
+        )
+        scans = result.scalars().all()
+        return [
+            {
+                "id": scan.id,
+                "target_network": scan.target_network,
+                "name": scan.name,
+                "status": scan.status.value,
+            }
+            for scan in scans
+        ]
+
+    async def update_status(self, scan_id: int, status: str) -> None:
+        """Update scan status."""
+        status_enum = ScanStatus(status)
+        await self.repository.update(scan_id, status=status_enum)
+        await self.session.commit()
+        logger.info("Scan %d status updated to %s", scan_id, status)

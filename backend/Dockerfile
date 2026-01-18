@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y \
     arp-scan \
     net-tools \
     procps \
+    samba-common-bin \
+    avahi-utils \
+    dnsutils \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

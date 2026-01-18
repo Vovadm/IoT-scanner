@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
+
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from models import ScanStatus, VulnerabilitySeverity
