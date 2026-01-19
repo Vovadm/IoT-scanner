@@ -9,8 +9,10 @@ export interface Device {
 	hostname?: string;
 	device_type?: string;
 	manufacturer?: string;
+	vendor?: string;
 	model?: string;
 	operating_system?: string;
+	os?: string;
 	open_ports?: PortInfo[] | string;
 	last_seen: string;
 	created_at: string;

@@ -19,16 +19,15 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: iot-scanner-backend
-    network_mode: host
+    ports:
+      - "8000:8000"
     env_file:
       - ./.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://iot_user:iot_password@postgres:5432/iot_scanner
     depends_on:
       postgres:
         condition: service_healthy
-    privileged: true
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
     volumes:
       - ./backend:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -41,7 +40,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: http://100.80.30.7:8000
     depends_on:
       - backend
     volumes:

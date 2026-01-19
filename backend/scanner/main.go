@@ -177,8 +177,8 @@ func runSingleScan(apiURL, network, scanName string) {
 }
 
 func executeScan(apiURL string, scanID int, network string) {
-	// Mark scan as in_progress
-	if err := updateScanStatus(apiURL, scanID, "in_progress"); err != nil {
+	// Mark scan as running
+	if err := updateScanStatus(apiURL, scanID, "running"); err != nil {
 		log.Printf("⚠️  Failed to update scan status: %v", err)
 	}
 
