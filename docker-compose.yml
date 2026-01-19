@@ -39,8 +39,6 @@ services:
     container_name: iot-scanner-frontend
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://100.80.30.7:8000
     depends_on:
       - backend
     volumes:

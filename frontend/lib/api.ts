@@ -6,7 +6,8 @@ import {
 	ScanCreateData,
 } from "@/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Используем относительный путь - Next.js проксирует запросы к бэкенду
+const API_URL = "";
 
 export async function getDevices(): Promise<Device[]> {
 	const res = await fetch(`${API_URL}/api/devices/`);
